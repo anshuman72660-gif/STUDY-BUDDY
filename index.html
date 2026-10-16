@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Study Buddy</title>
+<style>
+:root{--bg:#f3f8ff;--card:#fff;--ink:#16263d;--mut:#5b6b82;--blue:#2f7df6;--soft:#dcebff;--line:#cfe0f7}
+*{box-sizing:border-box}body{margin:0;display:flex;min-height:100vh;background:var(--bg);color:var(--ink);font:16px/1.6 "Segoe UI",system-ui,sans-serif}
+#side{width:220px;background:var(--card);border-right:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+#side h1{font-size:22px;color:var(--blue);margin:0 0 12px}
+#side button{text-align:left;border:0;background:none;padding:10px 14px;border-radius:14px;font:inherit;color:var(--ink);cursor:pointer;margin:0}
+#side button.on,#side button:hover{background:var(--soft);color:var(--blue)}
+main{flex:1;padding:24px;min-width:0;max-width:900px}.view{display:none}.view.on{display:block}
+h2{margin-top:0}.row{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}.row>input,.row>textarea{flex:1;min-width:120px}
+input,textarea,select{width:100%;border:1px solid var(--line);border-radius:14px;padding:10px 14px;font:inherit;background:#fff;margin:4px 0}
+input[type=checkbox]{width:auto}.row select,.row button{width:auto}
+button{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 16px;font:inherit;cursor:pointer;margin:4px 0}
+button.pri{background:var(--blue);color:#fff;border-color:var(--blue)}button:disabled{opacity:.5}
+:focus-visible{outline:3px solid #8ab8ff;outline-offset:2px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;cursor:pointer}.card:hover{border-color:var(--blue)}.card p{margin:4px 0 0;color:var(--mut)}
+#log{height:55vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:14px}
+.m{max-width:85%;padding:10px 14px;border-radius:18px;margin:8px 0;overflow-wrap:anywhere}.u{background:var(--blue);color:#fff;margin-left:auto}.a,.out{background:var(--card);border:1px solid var(--line)}
+.out{border-radius:18px;padding:12px 16px;margin-top:14px;overflow-wrap:anywhere}.out:empty{display:none}.err{color:#b42318;background:#fee4e2;border-color:#fda29b}
+.dots span{display:inline-block;width:8px;height:8px;margin:0 2px;border-radius:50%;background:var(--blue);animation:b 1s infinite}.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes b{50%{opacity:.2}}@media(prefers-reduced-motion:reduce){.dots span{animation:none}}
+.q{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px 16px;margin:12px 0}.q label{display:block;padding:4px 0}.ok{color:#067647}.no{color:#b42318}
+.warn{background:#fff7e0;border:1px solid #f0d58a;border-radius:14px;padding:10px 14px;font-size:14px}
+@media(max-width:700px){body{flex-direction:column}#side{width:100%;flex-direction:row;overflow-x:auto;padding:8px}#side h1{display:none}#side button{white-space:nowrap}main{padding:14px}}
+</style></head><body>
+<nav id="side"><h1>Study Buddy</h1>
+<button data-v="dash" class="on">Dashboard</button><button data-v="chat">AI Study Chat</button><button data-v="doubt">Doubt Solver</button>
+<button data-v="notes">Notes Summarizer</button><button data-v="quiz">Quiz Generator</button><button data-v="plan">Study Planner</button><button data-v="set">Settings</button></nav>
+<main>
+<section id="dash" class="view on"><h2>Welcome back. What are we learning today?</h2>
+<div id="keywarn" class="warn" hidden>Add your Claude API key in Settings to start.</div>
+<div class="row"><input id="qs" placeholder="Ask anything, e.g. Explain Newton's second law"><button class="pri" id="qsb">Ask</button></div>
+<div class="cards"><div class="card" data-go="chat"><b>AI Study Chat</b><p>Ask follow-ups and learn in your own mode.</p></div>
+<div class="card" data-go="doubt"><b>Doubt Solver</b><p>Step-by-step solutions or hints only.</p></div>
+<div class="card" data-go="notes"><b>Notes Summarizer</b><p>Paste notes or upload a PDF.</p></div>
+<div class="card" data-go="quiz"><b>Quiz Generator</b><p>Test yourself on any topic.</p></div>
+<div class="card" data-go="plan"><b>Study Planner</b><p>A realistic plan for your hours.</p></div></div></section>
+<section id="chat" class="view"><div class="row"><select class="mode"></select><select class="level"></select><button id="clr">Clear</button><button id="new">New conversation</button></div>
+<div id="log"></div><div class="row"><textarea id="msg" rows="2" placeholder="Type your question. Enter to send, Shift+Enter for a new line"></textarea><button class="pri" id="send">Send</button></div></section>
+<section id="doubt" class="view"><h2>Doubt Solver</h2><textarea id="dq" rows="5" placeholder="Paste your problem here"></textarea>
+<label><input type="checkbox" id="hints"> Hints only, don't show the answer</label><br><button class="pri" id="dgo">Solve</button><div class="out" id="dout"></div></section>
+<section id="notes" class="view"><h2>Notes Summarizer</h2><textarea id="nt" rows="7" placeholder="Paste notes here"></textarea>
+<input type="file" id="nf" accept=".pdf"><button class="pri" id="ngo">Summarize</button><div class="out" id="nout"></div></section>
+<section id="quiz" class="view"><h2>Quiz Generator</h2><div class="row"><input id="qsub" placeholder="Subject"><input id="qtop" placeholder="Topic">
+<select id="qdif"><option>easy</option><option selected>medium</option><option>hard</option></select><input id="qn" type="number" min="1" max="15" value="5" aria-label="Number of questions"></div>
+<button class="pri" id="qgo">Generate quiz</button><div id="qbox"></div></section>
+<section id="plan" class="view"><h2>Study Planner</h2><textarea id="ps" rows="3" placeholder="Subjects and topics to study"></textarea>
+<input id="pd" placeholder="Topics you find difficult"><div class="row"><input id="ph" type="number" step="0.5" placeholder="Hours per day"><input id="pe" type="date" aria-label="Exam date"></div>
+<button class="pri" id="pgo">Create plan</button><div class="out" id="pout"></div></section>
+<section id="set" class="view"><h2>Settings</h2>
+<label>Claude API key<input id="key" type="password" placeholder="sk-ant-..." autocomplete="off"></label>
+<label>Model<input id="model" placeholder="claude-sonnet-4-6"></label>
+<div class="row"><button class="pri" id="savekey">Save</button><button id="rmkey">Remove key</button></div><p id="ks"></p>
+<div class="warn">Your key is saved only in this browser (localStorage) and sent only to api.anthropic.com. Because there is no server, anyone using this browser can read it. Use it on your own device, set a spend limit in the Anthropic console, and never publish this file with a key inside.</div>
+<p>Default mode and level for chat and doubt solver:</p><div class="row"><select class="mode"></select><select class="level"></select></div></section>
+</main>
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const BASE = `You are Study Buddy, a patient, encouraging, and knowledgeable AI tutor.
+Your mission is to help students understand concepts instead of merely memorizing answers.
+Principles: 1) Explain in clear, age-appropriate language. 2) Break difficult topics into small steps. 3) Use everyday examples.
+4) Give formulas when needed, written in plain text (e.g. F = m x a), not LaTeX. 5) Never pretend to know something you do not know.
+6) Acknowledge uncertainty and correct mistakes. 7) Encourage follow-up questions. 8) Adapt to the selected difficulty level.
+9) For numerical problems explain reasoning and calculations. 10) For exam preparation focus on concepts and revision.
+11) In quiz mode ask one question and wait for the answer before revealing it. 12) Never fabricate references, sources, or textbook quotations.
+13) Stay relevant to the question. 14) When appropriate, end with a short recap or practice question.
+Format with short paragraphs, markdown headings (##) and lists.`;
+const MODES = {
+  simple: ["Simple Explanation", "MODE: Simple Explanation. Explain like the student is a complete beginner. Use analogies, no jargon."],
+  exam: ["Exam Preparation", "MODE: Exam Preparation. Focus on key concepts, formulas, common mistakes, and a quick revision checklist."],
+  tutor: ["Step-by-Step Tutor", "MODE: Step-by-Step Tutor. Guide the student one step at a time; ask a guiding question and do not dump the full solution at once."],
+  quiz: ["Quiz Me", "MODE: Quiz Me. Ask ONE question at a time on the topic. Wait for the student's answer, then evaluate it, explain, and ask the next. Never reveal the answer before they respond."]
+};
+const LEVELS = ["beginner", "intermediate", "advanced"], MAX_TEXT = 12000, MAX_PDF_MB = 5;
+const sys = (mode, level, extra = "") => [BASE, MODES[mode][1], "Student level: " + level + ".", extra].join("\n\n");
+const store = {get: k => { try { return localStorage.getItem(k) || ""; } catch { return ""; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: k => { try { localStorage.removeItem(k); } catch {} }};
+const pref = {mode: store.get("mode") || "simple", level: store.get("level") || "beginner"};
+let history = [], busy = false, last = 0;
+
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const md = t => esc(t).replace(/^#{1,3} (.*)$/gm, "<h3>$1</h3>").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/^[-*] (.*)$/gm, "• $1").replace(/\n/g, "<br>");
+const dots = '<span class="dots"><span></span><span></span><span></span></span>';
+
+// ---- Real AI call: browser -> Anthropic API (no backend) ----
+async function ask(system, messages, max = 1500) {
+  const key = store.get("key");
+  if (!key) throw new Error("No API key. Open Settings and paste your Claude API key.");
+  if (Date.now() - last < 1500) throw new Error("Please wait a moment between requests.");
+  last = Date.now();
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 60000);
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", signal: ctl.signal,
+      headers: {"content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true"},
+      body: JSON.stringify({model: store.get("model") || "claude-sonnet-4-6", max_tokens: max, system, messages})
+    });
+    if (!r.ok) {
+      const m = {401: "The API key was rejected. Check it in Settings.", 429: "Rate limited by the provider. Wait a moment and retry.", 529: "The AI service is overloaded. Try again shortly."}[r.status];
+      throw new Error(m || "The AI service returned an error (" + r.status + ").");
+    }
+    const d = await r.json();
+    return d.content.filter(b => b.type === "text").map(b => b.text).join("");
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("The AI took too long to respond. Please try again.");
+    if (e instanceof TypeError) throw new Error("Could not reach the AI service. Check your internet connection.");
+    throw e;
+  } finally { clearTimeout(t); }
+}
+
+function show(v) { $$(".view").forEach(e => e.classList.toggle("on", e.id === v)); $$("#side button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); }
+$$("#side button").forEach(b => b.onclick = () => show(b.dataset.v));
+$$("[data-go]").forEach(c => c.onclick = () => show(c.dataset.go));
+$$(".mode").forEach(s => { s.innerHTML = Object.entries(MODES).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join(""); s.value = pref.mode; });
+$$(".level").forEach(s => { s.innerHTML = LEVELS.map(l => `<option>${l}</option>`).join(""); s.value = pref.level; });
+$$(".mode,.level").forEach(s => s.onchange = () => { const k = s.classList.contains("mode") ? "mode" : "level"; pref[k] = s.value; store.set(k, s.value); $$("." + k).forEach(o => o.value = s.value); });
+
+async function runTo(box, btn, fn) {
+  btn.disabled = true; box.classList.remove("err"); box.innerHTML = dots;
+  try { box.innerHTML = await fn(); } catch (e) { box.classList.add("err"); box.textContent = e.message; }
+  btn.disabled = false;
+}
+function bubble(cls, html) { const d = document.createElement("div"); d.className = "m " + cls; d.innerHTML = html; $("#log").append(d); $("#log").scrollTop = 1e9; return d; }
+
+async function send(text) {
+  text = text.trim(); if (!text || busy) return;
+  show("chat"); bubble("u", esc(text)); history.push({role: "user", content: text.slice(0, 4000)});
+  const b = bubble("a", dots); busy = $("#send").disabled = true;
+  try {
+    const reply = await ask(sys(pref.mode, pref.level), history.slice(-20));
+    history.push({role: "assistant", content: reply}); b.innerHTML = md(reply);
+  } catch (e) { history.pop(); b.classList.add("err"); b.textContent = e.message; }
+  busy = $("#send").disabled = false; $("#log").scrollTop = 1e9;
+}
+$("#send").onclick = () => { const t = $("#msg").value; $("#msg").value = ""; send(t); };
+$("#msg").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#send").click(); } };
+$("#qsb").onclick = () => { const t = $("#qs").value; $("#qs").value = ""; send(t); };
+$("#qs").onkeydown = e => { if (e.key === "Enter") $("#qsb").click(); };
+$("#clr").onclick = $("#new").onclick = () => { history = []; $("#log").innerHTML = ""; };
+
+$("#dgo").onclick = () => runTo($("#dout"), $("#dgo"), async () => {
+  const q = $("#dq").value.trim(); if (!q) throw new Error("Enter a question first.");
+  const extra = "DOUBT SOLVER. " + ($("#hints").checked ? "The student wants HINTS ONLY: give 2-3 progressive hints and do NOT reveal the final answer."
+    : "Respond with: ## Topic, ## Concept, ## Step-by-step solution (explain why each step is needed), ## Final answer, ## Practice question.");
+  return md(await ask(sys("tutor", pref.level, extra), [{role: "user", content: q.slice(0, 4000)}], 2000));
+});
+
+// PDF text extraction with pdf.js (loaded only when a PDF is used)
+function loadPdfJs() {
+  return new Promise((res, rej) => {
+    if (window.pdfjsLib) return res();
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    s.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(); };
+    s.onerror = () => rej(new Error("Could not load the PDF reader. Check your internet connection or paste the text instead."));
+    document.head.append(s);
+  });
+}
+async function pdfText(file) {
+  if (!file.name.toLowerCase().endsWith(".pdf")) throw new Error("Only PDF files are supported.");
+  if (file.size > MAX_PDF_MB * 1048576) throw new Error("PDF is larger than " + MAX_PDF_MB + " MB.");
+  await loadPdfJs(); let out = "";
+  try {
+    const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+    for (let i = 1; i <= pdf.numPages && out.length <= MAX_TEXT; i++) out += (await (await pdf.getPage(i)).getTextContent()).items.map(x => x.str).join(" ") + "\n";
+  } catch { throw new Error("This file is not a readable PDF."); }
+  if (!out.trim()) throw new Error("No text found. Scanned/image PDFs are not supported.");
+  return out;
+}
+$("#ngo").onclick = () => runTo($("#nout"), $("#ngo"), async () => {
+  let text = $("#nt").value.trim(), note = "";
+  const f = $("#nf").files[0]; if (f) text = (await pdfText(f)).trim();
+  if (!text) throw new Error("Paste some notes or upload a text-based PDF.");
+  if (text.length > MAX_TEXT) { text = text.slice(0, MAX_TEXT); note = `<i>Your material was longer than ${MAX_TEXT} characters; only the first part was summarized.</i><br>`; }
+  const extra = "Summarize ONLY the material provided. Use sections: ## Summary, ## Key concepts, ## Definitions & formulas, ## Revision points. Do not add facts not in the material.";
+  return note + md(await ask(sys("exam", "intermediate", extra), [{role: "user", content: text}], 2000));
+});
+
+$("#pgo").onclick = () => runTo($("#pout"), $("#pgo"), async () => {
+  const subj = $("#ps").value.trim(), h = parseFloat($("#ph").value);
+  if (!subj || !(h >= 0.5 && h <= 16)) throw new Error("Enter subjects/topics and daily study hours between 0.5 and 16.");
+  const p = `Subjects/topics: ${subj.slice(0, 500)}\nDifficult topics: ${$("#pd").value.slice(0, 500) || "none"}\nStudy hours per day: ${h}\nExam date: ${$("#pe").value || "not set"}\nToday: ${new Date().toISOString().slice(0, 10)}`;
+  const extra = "Create a realistic daily/weekly study plan as a markdown list. Never exceed the daily hours. Include short breaks, extra time for difficult topics, and revision sessions.";
+  return md(await ask(sys("exam", "intermediate", extra), [{role: "user", content: p}], 2500));
+});
+
+// Quiz: answers stay in JS memory and are only shown after submit
+$("#qgo").onclick = async () => {
+  const box = $("#qbox"), subject = $("#qsub").value.trim(), topic = $("#qtop").value.trim(), n = +$("#qn").value;
+  if (!subject || !topic || !(n >= 1 && n <= 15)) { box.innerHTML = '<div class="out err">Enter a subject, a topic, and 1 to 15 questions.</div>'; return; }
+  $("#qgo").disabled = true; box.innerHTML = dots;
+  try {
+    const prompt = `Create ${n} original multiple-choice questions on ${topic.slice(0, 120)} (${subject.slice(0, 80)}), ${$("#qdif").value} difficulty. Return ONLY a JSON array. Each item: {"question": str, "options": [4 strings], "answer": index 0-3, "explanation": str}.`;
+    const raw = await ask(sys("exam", "intermediate"), [{role: "user", content: prompt}], 3000);
+    let qs; try { qs = JSON.parse(raw.match(/\[[\s\S]*\]/)[0]); } catch { throw new Error("The AI returned an invalid quiz. Please try again."); }
+    qs = qs.slice(0, n);
+    if (!qs.length || !qs.every(q => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer < 4))
+      throw new Error("The AI returned a malformed quiz. Please try again.");
+    box.innerHTML = qs.map((q, i) => `<div class="q"><b>${i + 1}. ${esc(q.question)}</b>${q.options.map((o, j) => `<label><input type="radio" name="q${i}" value="${j}"> ${esc(o)}</label>`).join("")}<div class="ex"></div></div>`).join("") + '<button class="pri" id="qsubm">Submit answers</button><div id="qres"></div>';
+    $("#qsubm").onclick = () => {
+      const ans = qs.map((_, i) => { const c = document.querySelector(`input[name=q${i}]:checked`); return c ? +c.value : -1; });
+      if (ans.includes(-1)) return alert("Answer every question before submitting.");
+      let score = 0;
+      $$("#qbox .q").forEach((q, i) => { const ok = ans[i] === qs[i].answer; score += ok; q.querySelector(".ex").innerHTML = `<p class="${ok ? "ok" : "no"}">${ok ? "Correct." : "Incorrect. Right answer: " + esc(qs[i].options[qs[i].answer])} ${esc(qs[i].explanation || "")}</p>`; });
+      const p = Math.round(100 * score / qs.length);
+      $("#qres").innerHTML = `<h3>Score: ${score}/${qs.length} (${p}%)</h3><p>${p >= 80 ? "Excellent work." : p >= 50 ? "Good effort. Review the explanations above and retry." : "Keep going. Revisit the topic in Study Chat, then try again."}</p>`;
+      $("#qsubm").disabled = true;
+    };
+  } catch (e) { box.innerHTML = `<div class="out err">${esc(e.message)}</div>`; }
+  $("#qgo").disabled = false;
+};
+
+// Settings
+function refreshKey() { const has = !!store.get("key"); $("#ks").textContent = has ? "A key is saved in this browser." : "No key saved yet."; $("#keywarn").hidden = has; }
+$("#model").value = store.get("model");
+$("#savekey").onclick = () => { const k = $("#key").value.trim(); if (k) store.set("key", k); store.set("model", $("#model").value.trim()); $("#key").value = ""; refreshKey(); };
+$("#rmkey").onclick = () => { store.del("key"); refreshKey(); };
+refreshKey();
+</script></body></html>
